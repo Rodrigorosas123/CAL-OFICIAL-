@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aplicativo Avanzado de Análisis y Evaluación Científica</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.17.1/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #000;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    h2 {
+      color: #fff;
+      text-align: center;
+      margin-top: 40px;
+      font-size: 36px;
+      font-family: 'Verdana', sans-serif;
+      font-weight: bold;
+      background: linear-gradient(to right, #ff6ec7, #ffcc00);
+      -webkit-background-clip: text;
+      color: transparent;
+      text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.8);
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      margin-top: 40px;
+    }
+    #upload {
+      margin-bottom: 15px;
+    }
+    #summary, #interpretacion {
+      background-color: #ecf0f1;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      color: #333;
+    }
+    #corr, #histogram {
+      margin-bottom: 40px;
+    }
+    .section-title {
+      color: #4e54c8;
+      font-weight: bold;
+      font-size: 22px;
+    }
+    .types {
+      background-color: #ecf0f1;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .types ul {
+      list-style-type: none;
+      padding-left: 20px;
+    }
+    .types ul li {
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    select {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #4e54c8;
+      font-size: 16px;
+    }
+    .btn {
+      background-color: #8f94fb;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      text-align: center;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #4e54c8;
+    }
+    /* Grid layout for graphs */
+    .graphs-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .graph-card {
+      background-color: #444;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    .graph-title {
+      text-align: center;
+      color: #fff;
+      font-weight: bold;
+      font-size: 20px;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Aplicativo Avanzado de Análisis y Evaluación Científica</h2>
+    <input type="file" id="upload" accept=".csv, .xlsx, .txt, .pdf" />
+    
+    <div class="types">
+      <h3>Selecciona el tipo de estadística</h3>
+      <select id="tipo_estadistica">
+        <option value="Descriptiva">📊 Estadística Descriptiva</option>
+        <option value="Inferencial">🧪 Estadística Inferencial</option>
+        <option value="Univariada">📈 Estadística Univariada</option>
+        <option value="Bivariada">📉 Estadística Bivariada</option>
+        <option value="Multivariada">📊 Estadística Multivariada</option>
+      </select>
+      
+      <h3>Selecciona el tipo de análisis</h3>
+      <select id="tipo_analisis">
+        <option value="Metaanálisis">Metaanálisis</option>
+        <option value="Bibliometría">Bibliometría</option>
+      </select>
+    </div>
+
+    <div class="section-title">Resumen Estadístico</div>
+    <div id="summary">Sube un archivo CSV para mostrar el resumen.</div>
+    
+    <div class="section-title">Gráficos Generados</div>
+    <div class="graphs-container">
+      <div class="graph-card">
+        <h4 class="graph-title">Matriz de Correlaciones</h4>
+        <div id="corr"></div>
+      </div>
+      <div class="graph-card">
+        <h4 class="graph-title">Histograma (Variable numérica)</h4>
+        <div id="histogram"></div>
+      </div>
+      <div class="graph-card">
+        <h4 class="graph-title">Gráfico de Barras</h4>
+        <div id="barplot"></div>
+      </div>
+      <div class="graph-card">
+        <h4 class="graph-title">Gráfico de Líneas</h4>
+        <div id="lineplot"></div>
+      </div>
+      <div class="graph-card">
+        <h4 class="graph-title">Gráfico de Dispersión</h4>
+        <div id="scatterplot"></div>
+      </div>
+      <div class="graph-card">
+        <h4 class="graph-title">Gráfico de Caja</h4>
+        <div id="boxplot"></div>
+      </div>
+    </div>
+    
+    <div class="section-title">Interpretación Automática (IA)</div>
+    <div id="interpretacion">Sube un archivo CSV para ver la interpretación automática.</div>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const summaryDiv = document.getElementById('summary');
+    const corrDiv = document.getElementById('corr');
+    const histDiv = document.getElementById('histogram');
+    const barDiv = document.getElementById('barplot');
+    const lineDiv = document.getElementById('lineplot');
+    const scatterDiv = document.getElementById('scatterplot');
+    const boxDiv = document.getElementById('boxplot');
+    const interpretacionDiv = document.getElementById('interpretacion');
+    const tipoEstadisticaSelect = document.getElementById('tipo_estadistica');
+    const tipoAnalisisSelect = document.getElementById('tipo_analisis');
+    
+    let data = [];
+    
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      
+      if (file.name.endsWith(".csv")) {
+        reader.onload = function(event) {
+          const text = event.target.result;
+          data = Papa.parse(text, {header: true}).data;
+          mostrarResumen(data);
+          mostrarCorrelacion(data);
+          mostrarHistograma(data);
+          mostrarGráficos(data);
+          interpretarDatos(data);
+        };
+        reader.readAsText(file);
+      } 
+      else if (file.name.endsWith(".xlsx")) {
+        reader.onload = function(event) {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, {type: "array"});
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet);
+          mostrarResumen(json);
+          mostrarCorrelacion(json);
+          mostrarHistograma(json);
+          mostrarGráficos(json);
+          interpretarDatos(json);
+        };
+        reader.readAsArrayBuffer(file);
+      } 
+      else if (file.name.endsWith(".txt")) {
+        reader.onload = function(event) {
+          const text = event.target.result;
+          const lines = text.split("\n");
+          data = lines.map(line => ({text: line}));
+          mostrarResumen(data);
+          mostrarCorrelacion(data);
+          mostrarHistograma(data);
+          mostrarGráficos(data);
+          interpretarDatos(data);
+        };
+        reader.readAsText(file);
+      } 
+      else if (file.name.endsWith(".pdf")) {
+        reader.onload = function(event) {
+          const arrayBuffer = event.target.result;
+          const text = pdf2txt(arrayBuffer); // Assuming pdf2txt is a function to extract text from PDF
+          data = [{text: text}];
+          mostrarResumen(data);
+          mostrarCorrelacion(data);
+          mostrarHistograma(data);
+          mostrarGráficos(data);
+          interpretarDatos(data);
+        };
+        reader.readAsArrayBuffer(file);
+      }
+    });
+    
+    function mostrarResumen(data) {
+      summaryDiv.innerText = JSON.stringify(data, null, 2); 
+    }
+
+    function mostrarCorrelacion(data) {
+      // Correlation matrix code here
+    }
+
+    function mostrarHistograma(data) {
+      // Histogram code here
+    }
+
+    function mostrarGráficos(data) {
+      // All other plots here (bar, line, scatter, boxplot)
+    }
+
+    function interpretarDatos(data) {
+      let texto = `Tipo de análisis seleccionado: ${tipoEstadisticaSelect.value}\nTipo de análisis específico: ${tipoAnalisisSelect.value}`;
+      interpretacionDiv.textContent = texto;
+    }
+  </script>
+</body>
+</html>
